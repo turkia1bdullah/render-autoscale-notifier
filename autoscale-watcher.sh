@@ -11,6 +11,7 @@ SERVICE_ID_DASHBOARD="${SERVICE_ID_DASHBOARD:-srv-d1rv0qripnbc73fgdetg}"
 # Set timezone to Asia/Riyadh (GMT+3)
 export TZ=Asia/Riyadh
 
+# Function to retrieve instance count
 get_count() {
   SERVICE_ID=$1
   curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
@@ -18,19 +19,15 @@ get_count() {
     jq -r ".[] | select(.service.id == \"$SERVICE_ID\") | .service.serviceDetails.numInstances"
 }
 
-# Initial counts
+# Get initial counts
 LAST_COUNT_APP=$(get_count "$SERVICE_ID_APP")
 LAST_COUNT_DASHBOARD=$(get_count "$SERVICE_ID_DASHBOARD")
 TOTAL_LAST=$((LAST_COUNT_APP + LAST_COUNT_DASHBOARD))
-
 START_TIME=$(date "+%Y-%m-%d %H:%M:%S")
 
-# Initial startup message
-INIT_MESSAGE="🚀 *Render Autoscale Notifier Started*\n\
-📅 *Time:* $START_TIME (GMT+3)\n\
-🟣 *FenzoApp:* $LAST_COUNT_APP instance(s)\n\
-🟠 *Dashboard:* $LAST_COUNT_DASHBOARD instance(s)\n\
-📊 *Total:* $TOTAL_LAST"
+# Send startup notification
+INIT_MESSAGE=$(printf "🚀 *Render Autoscale Notifier Started*\n📅 *Time:* %s (GMT+3)\n🟣 *FenzoApp:* %s instance(s)\n🟠 *Dashboard:* %s instance(s)\n📊 *Total:* %s" \
+  "$START_TIME" "$LAST_COUNT_APP" "$LAST_COUNT_DASHBOARD" "$TOTAL_LAST")
 
 curl -s -X POST https://api.telegram.org/bot$BOT_TOKEN/sendMessage \
   -d chat_id="$CHAT_ID" \
@@ -42,7 +39,7 @@ echo "🟣 App       = $LAST_COUNT_APP"
 echo "🟠 Dashboard = $LAST_COUNT_DASHBOARD"
 echo "📊 Total     = $TOTAL_LAST"
 
-# Loop to check changes
+# Monitor loop
 while true; do
   CURRENT_APP=$(get_count "$SERVICE_ID_APP")
   CURRENT_DASHBOARD=$(get_count "$SERVICE_ID_DASHBOARD")
@@ -51,7 +48,7 @@ while true; do
   if [ "$TOTAL_CURRENT" -ne "$TOTAL_LAST" ]; then
     NOW=$(date "+%Y-%m-%d %H:%M:%S")
 
-    # Icons based on change
+    # Decide icons
     ICON_APP="➖"
     ICON_DASHBOARD="➖"
     ICON_TOTAL="➖"
@@ -65,20 +62,19 @@ while true; do
     [ "$TOTAL_CURRENT" -gt "$TOTAL_LAST" ] && ICON_TOTAL="🔺"
     [ "$TOTAL_CURRENT" -lt "$TOTAL_LAST" ] && ICON_TOTAL="🔻"
 
-    MESSAGE="🔄 *Render Autoscaling Change Detected*\n\
-📅 *Time:* $NOW (GMT+3)\n\
-🟣 *FenzoApp:* $ICON_APP $LAST_COUNT_APP → $CURRENT_APP\n\
-🟠 *Dashboard:* $ICON_DASHBOARD $LAST_COUNT_DASHBOARD → $CURRENT_DASHBOARD\n\
-📊 *Total:* $ICON_TOTAL $TOTAL_LAST → $TOTAL_CURRENT"
+    # Build message
+    MESSAGE=$(printf "🔄 *Render Autoscaling Change Detected*\n📅 *Time:* %s (GMT+3)\n🟣 *FenzoApp:* %s %s → %s\n🟠 *Dashboard:* %s %s → %s\n📊 *Total:* %s %s → %s" \
+      "$NOW" "$ICON_APP" "$LAST_COUNT_APP" "$CURRENT_APP" "$ICON_DASHBOARD" "$LAST_COUNT_DASHBOARD" "$CURRENT_DASHBOARD" "$ICON_TOTAL" "$TOTAL_LAST" "$TOTAL_CURRENT")
 
     echo -e "$MESSAGE"
 
+    # Send Telegram alert
     curl -s -X POST https://api.telegram.org/bot$BOT_TOKEN/sendMessage \
       -d chat_id="$CHAT_ID" \
       -d text="$MESSAGE" \
       -d parse_mode="Markdown"
 
-    # Update counts
+    # Update trackers
     LAST_COUNT_APP=$CURRENT_APP
     LAST_COUNT_DASHBOARD=$CURRENT_DASHBOARD
     TOTAL_LAST=$TOTAL_CURRENT
