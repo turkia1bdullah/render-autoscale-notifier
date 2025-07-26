@@ -1,0 +1,19 @@
+services:
+  - type: web  # ⬅️ not 'worker'
+    name: autoscale-notifier
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: RENDER_API_KEY
+        sync: false
+      - key: BOT_TOKEN
+        sync: false
+      - key: CHAT_ID
+        sync: false
+      - key: SERVICE_ID_APP
+        sync: false
+      - key: SERVICE_ID_DASHBOARD
+        sync: false
+    ports:
+      - port: 10001  # Just a dummy port to satisfy Render (won't be used)
