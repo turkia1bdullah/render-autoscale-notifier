@@ -18,7 +18,7 @@ RUN chmod +x autoscale-watcher.sh && chown -R appuser:appgroup /app
 USER appuser
 
 # Expose dummy port (required by Render for Web Services)
-EXPOSE 3005
+EXPOSE 3006
 
 # Run the script
 CMD ["sh", "./autoscale-watcher.sh"]
