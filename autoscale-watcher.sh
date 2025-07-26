@@ -14,9 +14,17 @@ export TZ=Asia/Riyadh
 # Function to retrieve instance count
 get_count() {
   SERVICE_ID=$1
-  curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
-    https://api.render.com/v1/services | \
-    jq -r ".[] | select(.service.id == \"$SERVICE_ID\") | .service.serviceDetails.numInstances"
+  RESPONSE=$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer $RENDER_API_KEY" \
+    "https://api.render.com/v1/services/$SERVICE_ID/instances")
+
+  BODY=$(echo "$RESPONSE" | head -n -1)
+  STATUS=$(echo "$RESPONSE" | tail -n 1)
+
+  if [ "$STATUS" -ne 200 ]; then
+    echo "0"
+  else
+    echo "$BODY" | jq '. | length'
+  fi
 }
 
 # Get initial counts
