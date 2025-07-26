@@ -9,7 +9,7 @@ services:
     buildFilter:
       paths:
         - autoscale-watcher.sh
-        - Dockerfile
+        - dockerfile
         - render.yaml
     envVars:
       - key: RENDER_API_KEY
