@@ -5,7 +5,7 @@ services:
     plan: free
     repo: https://github.com/turkia1bdullah/render-autoscale-notifier
     branch: main
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./dockerfile
     buildFilter:
       paths:
         - autoscale-watcher.sh
