@@ -11,23 +11,15 @@ SERVICE_ID_DASHBOARD="${SERVICE_ID_DASHBOARD:-srv-d1rv0qripnbc73fgdetg}"
 # Set timezone to Asia/Riyadh (GMT+3)
 export TZ=Asia/Riyadh
 
-# Function to retrieve instance count
+# Get instance count from /services list
 get_count() {
   SERVICE_ID=$1
-  RESPONSE=$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer $RENDER_API_KEY" \
-    "https://api.render.com/v1/services/$SERVICE_ID/instances")
-
-  BODY=$(echo "$RESPONSE" | head -n -1)
-  STATUS=$(echo "$RESPONSE" | tail -n 1)
-
-  if [ "$STATUS" -ne 200 ]; then
-    echo "0"
-  else
-    echo "$BODY" | jq '. | length'
-  fi
+  curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+    https://api.render.com/v1/services | \
+    jq -r ".[] | select(.service.id == \"$SERVICE_ID\") | .service.serviceDetails.numInstances"
 }
 
-# Get initial counts
+# Initial counts
 LAST_COUNT_APP=$(get_count "$SERVICE_ID_APP")
 LAST_COUNT_DASHBOARD=$(get_count "$SERVICE_ID_DASHBOARD")
 TOTAL_LAST=$((LAST_COUNT_APP + LAST_COUNT_DASHBOARD))
@@ -56,27 +48,26 @@ while true; do
   if [ "$TOTAL_CURRENT" -ne "$TOTAL_LAST" ]; then
     NOW=$(date "+%Y-%m-%d %H:%M:%S")
 
-    # Decide icons
+    # Change icons
     ICON_APP="➖"
     ICON_DASHBOARD="➖"
     ICON_TOTAL="➖"
 
     [ "$CURRENT_APP" -gt "$LAST_COUNT_APP" ] && ICON_APP="🔺"
     [ "$CURRENT_APP" -lt "$LAST_COUNT_APP" ] && ICON_APP="🔻"
-
     [ "$CURRENT_DASHBOARD" -gt "$LAST_COUNT_DASHBOARD" ] && ICON_DASHBOARD="🔺"
     [ "$CURRENT_DASHBOARD" -lt "$LAST_COUNT_DASHBOARD" ] && ICON_DASHBOARD="🔻"
-
     [ "$TOTAL_CURRENT" -gt "$TOTAL_LAST" ] && ICON_TOTAL="🔺"
     [ "$TOTAL_CURRENT" -lt "$TOTAL_LAST" ] && ICON_TOTAL="🔻"
 
-    # Build message
+    # Notification message
     MESSAGE=$(printf "🔄 *Render Autoscaling Change Detected*\n📅 *Time:* %s (GMT+3)\n🟣 *FenzoApp:* %s %s → %s\n🟠 *Dashboard:* %s %s → %s\n📊 *Total:* %s %s → %s" \
-      "$NOW" "$ICON_APP" "$LAST_COUNT_APP" "$CURRENT_APP" "$ICON_DASHBOARD" "$LAST_COUNT_DASHBOARD" "$CURRENT_DASHBOARD" "$ICON_TOTAL" "$TOTAL_LAST" "$TOTAL_CURRENT")
+      "$NOW" "$ICON_APP" "$LAST_COUNT_APP" "$CURRENT_APP" \
+      "$ICON_DASHBOARD" "$LAST_COUNT_DASHBOARD" "$CURRENT_DASHBOARD" \
+      "$ICON_TOTAL" "$TOTAL_LAST" "$TOTAL_CURRENT")
 
     echo -e "$MESSAGE"
 
-    # Send Telegram alert
     curl -s -X POST https://api.telegram.org/bot$BOT_TOKEN/sendMessage \
       -d chat_id="$CHAT_ID" \
       -d text="$MESSAGE" \
